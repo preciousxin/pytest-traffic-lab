@@ -425,6 +425,35 @@ class TestXFail:
         result = testdir.runpytest(p)
         result.stdout.fnmatch_lines(["*1 xfailed*"])
 
+    def test_dynamic_xfail_set_during_call(self, testdir):
+        p = testdir.makepyfile(
+            """
+            import pytest
+            def test_this(request):
+                request.node.add_marker(pytest.mark.xfail)
+                assert 0
+            def test_that(request):
+                request.node.add_marker(pytest.mark.xfail)
+                assert 1
+        """
+        )
+        result = testdir.runpytest(p, "-rxX")
+        result.stdout.fnmatch_lines(
+            ["*XFAIL*test_this*", "*XPASS*test_that*", "*1 xfailed, 1 xpassed*"]
+        )
+
+    def test_dynamic_xfail_strict_xpass(self, testdir):
+        p = testdir.makepyfile(
+            """
+            import pytest
+            def test_this(request):
+                request.node.add_marker(pytest.mark.xfail(strict=True, reason="nope"))
+                assert 1
+        """
+        )
+        result = testdir.runpytest(p, "-rxX")
+        result.stdout.fnmatch_lines(["*XPASS(strict)] nope*", "*1 failed*"])
+
     @pytest.mark.parametrize(
         "expected, actual, matchline",
         [
